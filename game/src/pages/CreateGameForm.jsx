@@ -27,16 +27,21 @@ const CreateGameForm = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    socket.on('gameCreated', (newGameID) => {
+    socket.on('gameCreated', (data) => {
+      const { gameID: newGameID, playerID } = data;
       setGameID(newGameID);
       setIsLoading(false);
-      setIsGameCreator(true)
+      setIsGameCreator(true);
+      localStorage.setItem('playerID', playerID); // Save playerID to local storage
     });
 
-    socket.on('joinedGame', () => {
-      const destinationGameID = isGameCreator ? gameID : joinGameID;
-      navigate(`/game/${destinationGameID}`);
-      
+    socket.on('joinedGame', (data) => {
+      const { gameID: joinedGameID, playerID } = data;
+      if (!isGameCreator) {
+        setGameID(joinedGameID);
+        localStorage.setItem('playerID', playerID); // Save playerID to local storage
+      }
+      navigate(`/game/${joinedGameID}`);
     });
 
     socket.on('gameFull', () => {
@@ -53,7 +58,7 @@ const CreateGameForm = () => {
       socket.off('gameNotExists');
       socket.off('joinedGame');
     };
-  }, [navigate, gameID, joinGameID, isGameCreator]);
+  }, [navigate, isGameCreator]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -63,10 +68,9 @@ const CreateGameForm = () => {
 
   const handleGameCode = async (event) => {
     event.preventDefault();
-    setIsLoading(true)
+    setIsLoading(true);
     socket.emit('joinGame', { name, gameID: joinGameID });
   };
-
   const GameTitle = () => (
     <motion.h1
       className="mb-4 text-4xl font-extrabold leading-none tracking-tight text-blue-900 md:text-5xl lg:text-6xl dark:text-white"

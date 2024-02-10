@@ -92,6 +92,11 @@ class Deck:
     def length(self):
         return len(self.cards)
 
+class Message:
+    def __init__(self, message, error, shouldSend):
+        self.message = message
+        self.error = error
+        self.shouldSend = shouldSend
 
 class Rock:
     def __init__(self, player1, player2):
@@ -111,7 +116,21 @@ class Rock:
         self.winner = winner
 
     def add(self, player, card):
-        self.hands[player].append(card)
+        if len(self.hands[player]) >= 3 or self.winner != None:
+            return Message("Can't play anymore cards on this rock", True, True)
+        else:
+            self.hands[player].append(card)
+            return Message("Card played", False, False)
+        
+    def show_state(self, player):
+        state = {}
+        for p in self.hands.keys():
+            if p == player:
+                state["player"] = self.hands[p]
+            else:
+                state["opps"] = self.hands[p]
+        state["winner"] = self.winner
+        return state
         
 class State:
     def __init__(self, player1, player2):
@@ -132,28 +151,52 @@ class State:
         
         
     def playTurn(self, rock_index, card_index):
-        # Play card on rock
-        card = self.players[self.currentPlayer].pop(card_index)
-        self.rocks[rock_index].add(self.currentPlayer, card)
-        ## See if rock has been claimed 
-        winner, hand_type = self.rocks[rock_index].check_if_finished()
-        new_card = None
-        
-        ## Deal a card if it's possible
+        current_player = self.currentPlayer
+        card_played = self.players[current_player][card_index]
+        message = self.rocks[rock_index].add(current_player, card_played)
+        if message.error:
+            return message
+        self.players[current_player].pop(card_index)
         if self.deck.length() > 0:
-            new_card = self.deck.deal()
-            self.players[self.currentPlayer].append(new_card)
-        return {
-            self.currentPlayer: new_card,
-            "rockIndex": rock_index,
-            "rockWinner": winner,
-            "handType": hand_type,
-            "currentPLayer": self.switchPlayer()
-        }
+            self.players[current_player].append(self.deck.deal())
+        self.switchPlayer()
+        return Message("Turn successful",False, False)
+    
+    def checkIfRockClaimed(self, rock_index):
+        winner, handtype = self.rocks[rock_index].check_if_finished()
+        if winner != None:
+            return Message(f'{winner} won rock {rock_index} with the hand {handtype}', False, True)
+        else:
+            return Message(f'Rock {rock_index} still in play', False, False)
+            
+            
         
     def hasSomeoneWon(self):
-            adjacent_winner = find_adjacent_rock_winner(self.rocks)
-            majority_winner = find_majority_rock_winner(self.rocks)
-            no_winner = find_no_winner(self.rocks)
-            
-            return adjacent_winner or majority_winner or no_winner
+        adjacent_winner = find_adjacent_rock_winner(self.rocks)
+        majority_winner = find_majority_rock_winner(self.rocks)
+        no_winner = find_no_winner(self.rocks)
+        
+        return adjacent_winner or majority_winner or no_winner
+        
+    def returnState(self, player):
+        game = []
+        for r in self.rocks:
+            game.append(r.show_state(player))
+        
+        opps_player = [player for player in self.players if player != self.currentPlayer][0]
+        
+        return {
+            "game": game,
+            "currentPlayer": self.currentPlayer == player,
+            "deck_length": self.deck.length(),
+            "cards": self.players[player],
+            "opps_cards": self.players[opps_player]
+        }
+        
+                
+                
+        
+        
+    
+        
+       
