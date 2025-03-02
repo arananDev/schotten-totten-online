@@ -3,6 +3,16 @@ import string
 import random
 import asyncio
 from game_objects import State
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+
+fastapi_app = FastAPI()
+
+fastapi_app.mount("/", StaticFiles(directory="build", html=True), name="frontend")
+
+# Initialize Socket.IO ASGI app
+sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*', reconnection=True)
+app = socketio.ASGIApp(sio, other_asgi_app=fastapi_app)
 
 games = {}  # Dictionary to store game state
 player_to_sid = {}  # Maps playerID to a dict with 'sid' and 'name'
@@ -34,9 +44,6 @@ async def check_game_and_player(game_id, player_id):
     
     # Instead of emitting the game state here, we return it with no error
     return False, state
-
-sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*', reconnection=True)
-app = socketio.ASGIApp(sio)
 
 @sio.event
 async def connect(sid, environ):
